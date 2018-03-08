@@ -1,0 +1,28 @@
+#!/bin/bash
+
+COHORT=${1:?Provide cohort file}
+
+# The default password is raspberry
+PASSWD='$6$4gMlwr0Z$uVaGYIudnuDfbukj6yjc192ncjRlMtAUGFUY5FuhJmazIdkDNG6jBZrmvR7kS12mLoWyCIOT7bpa5eNpKNj3O1'
+
+BASEDIR=/home/ee3580
+SHELL=/bin/bash
+GROUP=ee3580
+
+echo "creating home directory"
+
+cat $1 | \
+while read line; do
+	USERNAME=id$line
+	useradd --base-dir $BASEDIR \
+                -g $GROUP \
+                --shell $SHELL \
+                --password $PASSWD \
+                $USERNAME
+
+	rm -rf $BASEDIR/$USERNAME
+	mkdir $BASEDIR/$USERNAME
+	chown  $USERNAME:$GROUP $BASEDIR/$USERNAME
+done
+
+

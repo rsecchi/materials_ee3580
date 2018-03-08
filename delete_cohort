@@ -1,0 +1,17 @@
+#!/bin/bash
+
+COHORT=${1:?Provide cohort file}
+
+BASEDIR=/home/ee3580
+SHELL=/bin/bash
+
+echo "deleting cohort"
+
+cat $COHORT | \
+while read line; do
+	USERNAME=id$line
+	userdel $USERNAME
+	rm -rf $BASEDIR/$USERNAME
+done
+
+
