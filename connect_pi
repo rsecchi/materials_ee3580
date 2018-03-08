@@ -1,0 +1,7 @@
+#!/bin/bash
+
+VPS_ADDRESS=137.74.161.44
+PORT_EXPOSED=2222
+
+ssh -fN -R $PORT_EXPOSED:localhost:22 $VPS_ADDRESS
+
