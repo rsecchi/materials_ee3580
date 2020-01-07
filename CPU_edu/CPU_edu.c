@@ -4,7 +4,6 @@
 
 #define INSTR_MEM_IMAGE   "mem.img"
 
-
 // Machine states
 #define FETCH0    0x00
 #define FETCH1    0x01
@@ -86,6 +85,7 @@ uint16_t res;
 
 		case COM:
 			reg_file[Rd] = ~reg_file[Rd];
+			if (reg_file[Rd]==0) sreg |= 0x02; else  sreg &= ~0x02;
 			status = FETCH0;
 			break;
 
@@ -101,11 +101,13 @@ uint16_t res;
 
 		case NEG: 
 			reg_file[Rd] = -((char)reg_file[Rd]);
+			if (reg_file[Rd]==0) sreg |= 0x02; else  sreg &= ~0x02;
 			status = FETCH0;
 			break;
 
 		case INC: 
 			reg_file[Rd]++;
+			if (reg_file[Rd]==0) sreg |= 0x02; else  sreg &= ~0x02;
 			status = FETCH0;
 			break;
 
@@ -155,12 +157,12 @@ uint16_t res;
 			break;
 
 		case BREQ: 
-			reg_file[Rd] &= reg_file[Rr&0x0F];
+			if (sreg & 0x02) 
+				ip = (int16_t)ip + (int8_t)Rr;
 			status = FETCH0;
 			break;
 
 		case RJMP: 
-			printf("RJMP Rd=%d, Rr=%d\n", Rd, (int8_t)Rr);
 			ip = (int16_t)ip + (int8_t)Rr;
 			status = FETCH0;
 			break;
@@ -170,8 +172,6 @@ uint16_t res;
 
 void run_cpu()
 {
-
-	print_cpu();
 
 	switch(status)
 	{
@@ -202,6 +202,7 @@ void run_cpu()
 
 		case EXEC:
 			decode();
+			print_cpu();
 			break;
 
 	}
@@ -243,11 +244,13 @@ void init_cpu()
 
 int main()
 {
+	char c;
 	load_mem();
 
 	init_cpu();
-	for(int i=0;i<20;i++)
+	for(;;) {
+		scanf("%c", &c);
 		run_cpu();
-	
+	}
 }
 

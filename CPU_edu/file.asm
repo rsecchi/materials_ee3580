@@ -1,7 +1,8 @@
-
+; This is just an example!
 
 	LDI R1 $0
-	RJMP out
+	RJMP out    ;
+	LDI R0 $55  ; This line is not executed
 
 cycle:
 	INC R1
