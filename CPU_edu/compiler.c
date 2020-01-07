@@ -3,13 +3,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define ASM_FILE "file.asm" 
-#define INSTR_MEM_IMAGE   "mem.img"
+#define MEM_SIZE (1<<16)
 
 FILE* file_mem;
 FILE* file_asm;
+char default_out[] = "mem.img";
 
-uint8_t mem_img[1<<16];  // 64kB instruction memory
+uint8_t mem_img[MEM_SIZE];  // 64kB instruction memory
 
 // instructions opcodes
 #define NOP       0x00 
@@ -40,11 +40,11 @@ const char* instr_name[] = {
 	"OR", "BREQ", "RJMP" };
 
 
-// -- lables ------
+// --- labels and symbols ------
 #define MAX_LABS 100
 #define MAX_SYMS  100
 
-int labels;   // number of labels
+int labels;
 struct {
 	uint16_t addr;
 	char name[20];
@@ -101,45 +101,59 @@ uint8_t get_op()
 		sscanf(local_buf, "%d", &res)<=0 || 
 		res>255 || res<0 )
 	{
-
-	
-		/*
 		fprintf(stderr, "Unknown operand %s at token %d\n", 
 			buffer, token);
 		exit(1);
-		*/
 	}
 
 	return res;
 }
 
-void copy_img()
+void parse_cmdline(int argc, char* argv[])
 {
+	char* fn;
+
+	if (argc<2 || argc>3)
+	{
+		fprintf(stderr, "%s <inputfile> [<outputfile>]\n", argv[0]);
+		exit(1);
+	}
+	
+	file_asm = fopen(argv[1], "r");
+	if (!file_asm)
+	{
+		fprintf(stderr, "Error in opening file %s\n", argv[1]);
+		exit(1);
+	}
+
+	if (argc==3)
+		fn = argv[2];
+	else
+		fn = default_out;
+
+	file_mem = fopen(fn,"w");
+	if (!file_mem) {
+		fprintf(stderr, "Error in opening file %s\n", fn);
+		exit(1);
+	}
+
 }
 
-void main()
+void main(int argc, char* argv[])
 {
 	uint8_t reg;
 	uint8_t opcode;
 	int i, k;
 
-	file_asm = fopen(ASM_FILE,"r");
-	if (!file_asm)
-	{
-		fprintf(stderr, "Error in opending input file\n");
-		exit(1);
-	}
+	parse_cmdline(argc, argv);
 
+	while(fscanf(file_asm, "%s", buffer)>0) {
 
-	file_mem = fopen(INSTR_MEM_IMAGE,"w");
-	if (!file_mem)
-	{
-		fprintf(stderr, "Error in opending output file\n");
-		exit(1);
-	}
-
-
-	while(fscanf(file_asm, "%s", buffer)>0){
+		// remove comments
+		if (buffer[strlen(buffer)-1] == ';') {
+			fgets(buffer, sizeof(buffer), file_asm);
+			continue;
+		}		
 
 		// check for labels
 		if (buffer[strlen(buffer)-1] == ':') {
@@ -254,10 +268,9 @@ void main()
 	// copy image to file
 	for(k=0; k<bytes; k++)
 		fprintf(file_mem,"%02X ", mem_img[k]);
-
-
 	fprintf(file_mem, "\n");
 
+	exit(0);
 }
 
 
