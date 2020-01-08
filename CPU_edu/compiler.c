@@ -144,6 +144,7 @@ void main(int argc, char* argv[])
 	uint8_t reg;
 	uint8_t opcode;
 	int i, k;
+	char c;
 
 	parse_cmdline(argc, argv);
 
@@ -195,7 +196,6 @@ void main(int argc, char* argv[])
 			case INC:
 			case LSR:
 			case LSL:
-			case MOV:
 
 				token++;
 				reg = get_reg();
@@ -209,7 +209,11 @@ void main(int argc, char* argv[])
 				out_code((opcode<<4) | reg);
 
 				token++;
-				fscanf(file_asm, "%s", buffer);
+				fscanf(file_asm, " %c %s", &c, buffer);
+				if (c!=',') {
+					fprintf(stderr, "missing ',' at token %d\n", token);
+					exit(1);
+				}
 				out_code(get_op());
 				break;
 
@@ -217,13 +221,18 @@ void main(int argc, char* argv[])
 			case ADC:
 			case AND:
 			case OR:
+			case MOV:
 				token++;
 				reg = get_reg();
 				out_code((opcode<<4) | reg);
 
 				token++;
-				fscanf(file_asm, "%s", buffer);
-				out_code(get_op());
+				fscanf(file_asm, " %c", &c);
+				if (c!=',') {
+					fprintf(stderr, "missing ',' at token %d\n", token);
+					exit(1);
+				}
+				out_code(get_reg());
 				break;
 
 
