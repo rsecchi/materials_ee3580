@@ -112,12 +112,17 @@ uint16_t res;
 			break;
 
 		case LSR:
+			sreg |= reg_file[Rd] & 0x01;
 			reg_file[Rd] >>= 1;
+			if (reg_file[Rd]==0) sreg |= 0x02; else  sreg &= ~0x02;
 			status = FETCH0;
 			break;
 
 		case LSL: 
-			reg_file[Rd] <<= 1;
+			res = reg_file[Rd] << 1;
+			reg_file[Rd] = res & 0xFF;
+			if ((res&0xFF)==0) sreg |= 0x02; else  sreg &= ~0x02;
+			if (res>255) sreg |= 0x01; else sreg &= ~0x01;
 			status = FETCH0;
 			break;
 
@@ -135,24 +140,29 @@ uint16_t res;
 		case ADD: 
 			res = reg_file[Rd] + reg_file[Rr&0x0F];
 			reg_file[Rd] = res & 0xFF;
-			if (res&0xFF ==0) sreg |= 0x02; else  sreg &= ~0x02;
+			if ((res&0xFF)==0) sreg |= 0x02; else  sreg &= ~0x02;
 			if (res>255) sreg |= 0x01; else sreg &= ~0x01;
 
 			status = FETCH0;
 			break;
 
 		case ADC: 
-			reg_file[Rd] += reg_file[Rr&0x0F];
+			res = reg_file[Rd] + reg_file[Rr&0x0F] + (sreg&0x01);
+			reg_file[Rd] = res & 0xFF;
+			if ((res&0xFF)==0) sreg |= 0x02; else  sreg &= ~0x02;
+			if (res>255) sreg |= 0x01; else sreg &= ~0x01;
 			status = FETCH0;
 			break;
 
 		case AND: 
 			reg_file[Rd] &= reg_file[Rr&0x0F];
+			if (reg_file[Rd]==0) sreg |= 0x02; else  sreg &= ~0x02;
 			status = FETCH0;
 			break;
 
 		case OR: 
 			reg_file[Rd] |= reg_file[Rr&0x0F];
+			if (reg_file[Rd]==0) sreg |= 0x02; else  sreg &= ~0x02;
 			status = FETCH0;
 			break;
 
