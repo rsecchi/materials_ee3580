@@ -41,11 +41,10 @@ Formats of Micro instruction:
 
 one-byte instructions
 
-0000   NOP       =>   No operation
-
-0001   COM Rd    =>   One's complement
-0010   ST X,Rr   =>   Store in Memory (X is a pointer register R14:R15)
-0011   LD Rd, X  =>   Load in Memory  (X is a pointer register R14:R15)
+ 0000   NOP       =>   No operation
+ 0001   COM Rd    =>   One's complement
+ 0010   ST X,Rr   =>   Store in Memory (X is a pointer register R14:R15)
+ 0011   LD Rd, X  =>   Load in Memory  (X is a pointer register R14:R15)
 
 0100   NEG Rd    =>   Two's complement
 0101   INC Rd    =>   Increment Register
