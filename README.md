@@ -58,7 +58,7 @@ Formats of Micro instruction:
     1010   ADD Rd, Rr  =>  Add register
     1011   ADC Rd, Rd  =>  Add register with carry
 
-    0010   AND Rd, Rr  =>  Logigal AND
-    0011   OR  Rd, Rr  =>  Logical OR
+    1100   AND Rd, Rr  =>  Logigal AND
+    1101   OR  Rd, Rr  =>  Logical OR
     1110   BREQ  K     =>  Relative branch if equal (Z=1)
     1111   RJPM  K     =>  Relative jump
