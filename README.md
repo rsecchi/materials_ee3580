@@ -4,12 +4,11 @@
 CPU registers
 
 
-R0-R15    sixteen 8-bit register (register file)
+R0-R15    8-bit registers (register file)
 
 IP        instruction pointer (16 bits)
 SREG      status register
 
-RES       one 8-bit general-purpose register (in ALU)
 
 
 ====================================================================================
