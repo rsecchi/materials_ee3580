@@ -39,26 +39,26 @@ Formats of Micro instruction:
 	
 ====================================================================================
 
-one-byte instructions
+    one-byte instructions
 
- 0000   NOP       =>   No operation
- 0001   COM Rd    =>   One's complement
- 0010   ST X,Rr   =>   Store in Memory (X is a pointer register R14:R15)
- 0011   LD Rd, X  =>   Load in Memory  (X is a pointer register R14:R15)
+    0000   NOP       =>   No operation
+    0001   COM Rd    =>   One's complement
+    0010   ST X,Rr   =>   Store in Memory (X is a pointer register R14:R15)
+    0011   LD Rd, X  =>   Load in Memory  (X is a pointer register R14:R15)
 
-0100   NEG Rd    =>   Two's complement
-0101   INC Rd    =>   Increment Register
-0110   LSR Rd    =>   Logical shift right  
-0111   LSL Rd    =>   Logical shift left
+    0100   NEG Rd    =>   Two's complement
+    0101   INC Rd    =>   Increment Register
+    0110   LSR Rd    =>   Logical shift right  
+    0111   LSL Rd    =>   Logical shift left
 
-two-byte instructions
+    two-byte instructions
 
-1000   MOV Rd, Rr  =>  Copy register
-1001   LDI Rd, K   =>  Load immediate
-1010   ADD Rd, Rr  =>  Add register
-1011   ADC Rd, Rd  =>  Add register with carry
+    1000   MOV Rd, Rr  =>  Copy register
+    1001   LDI Rd, K   =>  Load immediate
+    1010   ADD Rd, Rr  =>  Add register
+    1011   ADC Rd, Rd  =>  Add register with carry
 
-0010   AND Rd, Rr  =>  Logigal AND
-0011   OR  Rd, Rr  =>  Logical OR
-1110   BREQ  K     =>  Relative branch if equal (Z=1)
-1111   RJPM  K     =>  Relative jump
+    0010   AND Rd, Rr  =>  Logigal AND
+    0011   OR  Rd, Rr  =>  Logical OR
+    1110   BREQ  K     =>  Relative branch if equal (Z=1)
+    1111   RJPM  K     =>  Relative jump
