@@ -61,16 +61,18 @@ module instr_memory(clk, addr, outrom);
 endmodule
 
 
-module control_unit(clk, op1, op2, rw, operation, imm_op, ip, rom_data, imm_res);
+module control_unit(clk, op1, op2, rw, operation, 
+			imm_op, ip, rom_data, imm_res, alu_flags);
 
-
+	/* input signals */	
 	input wire clk;
 	input wire [15:0] rom_data;    // instruction from ROM
 	wire [3:0] opcode;             // opcode field in instruction
 
 	/* control registers */
+	reg [7:0] state;               // internal FSM state	
 	output reg [15:0] ip;          // instruction pointer
-	reg [7:0] state;               //internal FSM state	
+	input [7:0] alu_flags;         // flags from ALU
 	reg [15:0] instr;              // temporary instruction register
 
 	/* state encodings */
@@ -79,7 +81,7 @@ module control_unit(clk, op1, op2, rw, operation, imm_op, ip, rom_data, imm_res)
 	parameter EXEC_WRITE=8'h02;
 	parameter WAIT_INSTR=8'h03;
 	
-	/* signals */
+	/* output signals */
 	output reg rw;                 // read/write register file
 	output wire [7:0] imm_op;      // immediate operand
 	output reg imm_res;            // immediate or register
@@ -87,14 +89,14 @@ module control_unit(clk, op1, op2, rw, operation, imm_op, ip, rom_data, imm_res)
 	output wire [3:0] op1;         // first operand (reg)
 	output wire [3:0] op2;         // second operand (reg)
 		
-	/* decode */
+	/* signal generation (decode) */
 	assign opcode    = rom_data[15:12];	
 	assign op1       = (state==EXEC_WRITE) ? instr[11:8] : rom_data[11:8];
 	assign op2       = rom_data[3:0];
 	assign imm_op    = instr[7:0];
 	assign operation = instr[15:12];
 
-	/* FSM controller */	
+	/* FSM (generate next state, update ip and rw) */	
 	always @(posedge clk)
 	begin
 				
@@ -180,28 +182,54 @@ module control_unit(clk, op1, op2, rw, operation, imm_op, ip, rom_data, imm_res)
 		endcase
 	end
 
-
 endmodule
 
-module arith_logic_unit(clk, in1, in2, op, result);
+module arith_logic_unit(clk, in1, in2, op, result, sreg);
 	
 	input wire [7:0] in1;
 	input wire [7:0] in2;
-	input wire clk;
 	input wire [3:0] op;
 
 	output wire [7:0] result;
-	
+	wire [8:0] sum;              // Adder Circuit plus carry 
+	output reg  [7:0] sreg;
+
+	wire z_flag;        // Z flag in SREG
+	wire c_flag;        // C flag in SREG
+
+	assign sum =
+		(op == 4'b0101) ? {0,in1} + 1           :  // INC
+		(op == 4'b1010) ? {0,in1} + {0,in2}     :  // ADD
+		(op == 4'b1011) ? {0,in1} + {0,in2} + 1 :  // ADC
+		0;  // default 
+
 	assign result = 
-		(op == 4'b0001) ? ~in1    :     // COM
-		(op == 4'b1010) ? in1+in2 :     // ADD
-		0;  // COM 
+		(op == 4'b0001) ? ~in1      :     // COM
+		(op == 4'b0100) ? -in1      :     // NEG
+		(op == 4'b0101) ? in1 + 1   :     // INC
+		(op == 4'b0110) ? in >> 1   :     // LSR
+		(op == 4'b0111) ? in << 1   :     // LSL
+		(op == 4'b1000) ? in2       :     // MOV
+		(op == 4'b1010) ? sum[7:0]  :     // ADD
+		(op == 4'b1011) ? sum[7:0]  :     // ADC
+		(op == 4'b1100) ? in1 & in2 :     // AND
+		(op == 4'b1101) ? in1 | in2 :     // OR
+		0;  // default 
+	
+	assign z_flg = (result == 0) ? 1 : 0;
+	
+	assign c_flg = 
+		(op == 4'b0100) ? -in1    :     // NEG
+		(op == 4'b0101) ? in1 + 1 :     // INC
+		(op == 4'b0110) ? in[0]   :     // LSR
+		(op == 4'b0111) ? in[7]   :     // LSL
+		(op == 4'b1010) ? sum[8]  :     // ADD
+		(op == 4'b1011) ? sum[8]  :     // ADC
+		0;  // default 
 	
 	always @(posedge clk)
-	begin
-		$display("ALU: op=%d in1=%x in2=%x res=%x",
-				op, in1, in2, result);
-	end
+		sreg <= {6'b000000, z_flg, c_flg};
+	
 	
 endmodule
 
@@ -213,32 +241,37 @@ module test;
 	always #5 ck = ~ck;
 	
 	wire rw;
-	wire [3:0] regname1;      // first operand (destination)
-	wire [3:0] regname2;      // second operand (source)
+	wire [3:0] reg1;          // first operand (destination)
+	wire [3:0] reg2;          // second operand (source)
 	
-	wire [7:0] operand1;
-	wire [7:0] operand2;
+	wire [7:0] op1;           // ALU operand register 1
+	wire [7:0] op2;           // ALU operand register 2
 
 	wire [3:0] operation;
 	wire [15:0] instr_addr;
 	wire [15:0] opcode;
 	
-	/* regifile update variables */
+	/* regfile update variables */
 	wire imm_res;
 	wire [7:0] res;
 	wire [7:0] immediate;
 	wire [7:0] val;
+	wire [7:0] sreg;
 
 
-	/* wiring CPU */
+	/* wiring the CPU */
 	assign val = (imm_res==0) ? immediate : res;
-	register_file RF(ck, regname1, regname2, val, rw, operand1, operand2);
+	register_file RF(ck, reg1, reg2, val, rw, op1, op2);
+
 	instr_memory INSTR_MEM(ck, instr_addr, opcode);
-	control_unit CPU_FSM(ck, regname1, regname2, rw, operation, immediate, instr_addr, opcode, imm_res);
-	arith_logic_unit ALU(ck, operand1, operand2, operation, res);
+
+	control_unit CPU_FSM(ck, reg1, reg2, rw, 
+			operation, immediate, instr_addr, opcode, imm_res, sreg);
+
+	arith_logic_unit ALU(ck, op1, op2, operation, res, sreg);
 
 
-	always @(negedge ck)  $display("\n\n\nCLOCK=========================================");
+	always @(negedge ck)  $display("\n\n\nCLOCK=====================================");
 	//always @(val) $display("TEST ---> [imm_reg=%d] [immediate=%d] [res=%d] val=%d", 
 	//				imm_res, immediate, res, val);
 		
