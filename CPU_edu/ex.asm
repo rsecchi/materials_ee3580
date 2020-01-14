@@ -1,0 +1,9 @@
+NOP
+LDI R1, $1
+LDI R2, $2
+ADD R1, R2
+NOP
+NOP
+NOP
+
+
