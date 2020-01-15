@@ -96,13 +96,17 @@ module control_unit(clk, op1, op2, rw, operation,
 					// decode opcode
 					case(opcode)
 						
-						4'b0000,
+						4'b0000: begin // NOP
+							ip <= ip + 1;
+							rw <= 1'b0;
+						end
+
 						4'b0001, 4'b0100, 4'b0101, 4'b0110, 4'b0111,
 						4'b1000, 4'b1010, 4'b1011, 4'b1100, 4'b1101
 						: begin // COM
 							imm_res <= 1'b1;
-							rw <= 1'b1;
 							ip <= ip + 1;
+							rw <= 1'b1;
 						end
 			
 						4'b1001: begin // LDI
