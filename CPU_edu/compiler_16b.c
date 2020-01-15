@@ -39,9 +39,8 @@ const char* instr_name[] = {
 	"LSR", "LSL", "MOV", "LDI", "ADD", "ADC", "AND",
 	"OR", "BREQ", "RJMP" };
 
-
 // --- labels and symbols ------
-#define MAX_LABS 100
+#define MAX_LABS  100
 #define MAX_SYMS  100
 
 int labels;
@@ -64,7 +63,6 @@ void out_code(uint8_t bc)
 {
 	mem_img[bytes] = bc;
 	bytes++;
-
 }
 
 uint8_t get_reg()
@@ -81,7 +79,6 @@ uint8_t get_reg()
 			buffer, token);
 		exit(1);
 	}
-		
 
 	return res;
 
@@ -250,10 +247,8 @@ void main(int argc, char* argv[])
 				out_code(0);  
 				
 				break;
-
 		}
 	}			
-
 
 	// resolve symbols
 	for(k=0; k<syms; k++)
@@ -262,11 +257,19 @@ void main(int argc, char* argv[])
 			if (!strcmp(sym[k].name, lab[i].name))
 				break;
 
-		if (i<labels) 
-			
-			mem_img[sym[k].addr] = lab[i].addr - sym[k].addr - 1;
-			
-		else {
+		if (i<labels) {
+
+			/*	
+			printf("subts: %s %d %s %d => %d\n", 
+				lab[i].name, lab[i].addr, sym[k].name, sym[k].addr, 
+				((lab[i].addr>>1) - (sym[k].addr>>1))
+			);
+			*/
+	
+			mem_img[sym[k].addr] = ((lab[i].addr>>1) - (sym[k].addr>>1));
+
+		} else {
+			// immediate?
 			strcpy(buffer, sym[k].name);		
 			mem_img[sym[k].addr] = get_op();
 		}
