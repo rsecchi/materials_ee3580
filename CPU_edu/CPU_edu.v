@@ -83,40 +83,35 @@ module control_unit(clk, op1, op2, rw, operation,
 		case(state)
 		
 			RESET: begin
-					ip <= 0;
+					ip <= 16'h0000;
 					rw <= 1'b0;
 					state <= WAIT_INSTR;
+					instr <= 8'h00;
 				   end
 			
 			FETCH: begin
 					instr <= rom_data;
+					state <= WAIT_INSTR;
 
 					// decode opcode
 					case(opcode)
-						4'b0000: begin 	// NOP
-							state <= WAIT_INSTR;
-							ip <= ip + 1;
-							rw <= 1'b0;
-						end
 						
+						4'b0000,
 						4'b0001, 4'b0100, 4'b0101, 4'b0110, 4'b0111,
 						4'b1000, 4'b1010, 4'b1011, 4'b1100, 4'b1101
 						: begin // COM
 							imm_res <= 1'b1;
 							rw <= 1'b1;
-							state <= WAIT_INSTR;
 							ip <= ip + 1;
 						end
 			
 						4'b1001: begin // LDI
 							imm_res <= 1'b0;
-							state <= WAIT_INSTR;
 							ip <= ip + 1;
 							rw <= 1'b1;
 						end
 
 						4'b1110: begin // BREQ
-							state <= WAIT_INSTR;
 							rw <= 1'b0;
 							if (alu_flags & 8'h02)
 								ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
@@ -125,13 +120,12 @@ module control_unit(clk, op1, op2, rw, operation,
 						end
 
 						4'b1111: begin // RJMP
-							state <= WAIT_INSTR;
 							ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
 							rw <= 1'b0;
 						end
 						
 						default:
-							state <= RESET;	
+							ip <= 16'h0000;
 					endcase
 					
 					end	
