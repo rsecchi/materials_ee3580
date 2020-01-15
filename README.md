@@ -14,9 +14,9 @@ SREG      status register
 
 Formats of Micro instruction:
 
-   1-byte instructions:
+   1-byte instructions (1 byte is padding):
    
-      oooo rrrr 
+      oooo rrrr 00000000
         
         oooo --> 4-bit opcode
    
