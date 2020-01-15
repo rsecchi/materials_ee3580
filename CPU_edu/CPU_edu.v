@@ -17,8 +17,6 @@ module register_file(clk, regname1, regname2, in, rw, out1, out2);
 	
 	always @(posedge clk)
 	begin
-		$display("r[0]=%2X r[1]=%2X r[2]=%2X r[3]=%2X r[4]=%2X r[5]=%2X r[6]=%2X", 
-				r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
 
 		out1 <= r[regname1];
 		out2 <= r[regname2];
@@ -38,7 +36,8 @@ module instr_memory(clk, addr, outrom);
 
 	reg [15:0] ROM[16'hFFFF:0];    // micro instructions memory (64KB)
 	
-	always @(posedge clk) outrom <= ROM[addr];
+	always @(posedge clk) 
+		outrom <= ROM[addr];
 
 endmodule
 
@@ -52,16 +51,15 @@ module control_unit(clk, op1, op2, rw, operation,
 	wire [3:0] opcode;             // opcode field in instruction
 
 	/* control registers */
-	reg [7:0] state;               // internal FSM state	
+	reg [1:0] state;               // internal FSM state	
 	output reg [15:0] ip;          // instruction pointer
 	input [7:0] alu_flags;         // flags from ALU
 	reg [15:0] instr;              // temporary instruction register
 
 	/* state encodings */
-	parameter RESET=8'h00;
-	parameter FETCH=8'h01;
-	parameter EXEC_WRITE=8'h02;
-	parameter WAIT_INSTR=8'h03;
+	parameter RESET=2'b00;
+	parameter FETCH=2'b01;
+	parameter WAIT_INSTR=2'b10;
 	
 	/* output signals */
 	output reg rw;                 // read/write register file
@@ -73,7 +71,7 @@ module control_unit(clk, op1, op2, rw, operation,
 		
 	/* signal generation (decode) */
 	assign opcode    = rom_data[15:12];	
-	assign op1       = (state==EXEC_WRITE) ? instr[11:8] : rom_data[11:8];
+	assign op1       = (state==WAIT_INSTR) ? instr[11:8] : rom_data[11:8];
 	assign op2       = rom_data[3:0];
 	assign imm_op    = instr[7:0];
 	assign operation = instr[15:12];
@@ -85,47 +83,41 @@ module control_unit(clk, op1, op2, rw, operation,
 		case(state)
 		
 			RESET: begin
-					$display("RESET");
 					ip <= 0;
 					rw <= 1'b0;
 					state <= WAIT_INSTR;
 				   end
 			
 			FETCH: begin
-					$display("FETCH: IP=%x rom_data=%x opcode=%x", ip, rom_data, opcode);
 					instr <= rom_data;
-					rw <= 1'b0;
 
 					// decode opcode
 					case(opcode)
 						4'b0000: begin 	// NOP
-							$display("NOP");
 							state <= WAIT_INSTR;
 							ip <= ip + 1;
+							rw <= 1'b0;
 						end
 						
 						4'b0001, 4'b0100, 4'b0101, 4'b0110, 4'b0111,
 						4'b1000, 4'b1010, 4'b1011, 4'b1100, 4'b1101
 						: begin // COM
-							$display("[%1X]opcode [%02d] [%02d]", 
-								opcode, op1, op2);
 							imm_res <= 1'b1;
 							rw <= 1'b1;
-							state <= EXEC_WRITE;
+							state <= WAIT_INSTR;
 							ip <= ip + 1;
 						end
 			
 						4'b1001: begin // LDI
-							$display("LDI R%02d <- %2x",op1, rom_data[7:0]);
 							imm_res <= 1'b0;
-							rw <= 1'b1;
-							state <= EXEC_WRITE;
+							state <= WAIT_INSTR;
 							ip <= ip + 1;
+							rw <= 1'b1;
 						end
 
 						4'b1110: begin // BREQ
-							$display("BREQ R%02d <- %2x",op1, rom_data[7:0]);
 							state <= WAIT_INSTR;
+							rw <= 1'b0;
 							if (alu_flags & 8'h02)
 								ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
 							else
@@ -133,9 +125,9 @@ module control_unit(clk, op1, op2, rw, operation,
 						end
 
 						4'b1111: begin // RJMP
-							$display("RJMP R%02d <- %2x",op1, rom_data[7:0]);
 							state <= WAIT_INSTR;
 							ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
+							rw <= 1'b0;
 						end
 						
 						default:
@@ -145,15 +137,8 @@ module control_unit(clk, op1, op2, rw, operation,
 					end	
 				   
 			
-			EXEC_WRITE: begin // wait op finish 
-					$display("EXEC_WRITE R%02d <- %2x",op1, imm_op);
-					state <= FETCH;
-					rw <= 1'b0;
-					instr <= 8'h00;
-				   end
 			
 			WAIT_INSTR: begin // wait to load next instruction
-					$display("WAIT_INSTR");
 					state <= FETCH;
 					rw <= 1'b0;
 					instr <= 8'h00;
@@ -217,11 +202,8 @@ module arith_logic_unit(clk, in1, in2, op, result, sreg);
 		sreg[1];  // default 
 	
 	always @(posedge clk)
-	begin
 		if (op!=4'b0000)
 			sreg <= {6'b000000, z_flg, c_flg};
-		$display("SREG=%2x",sreg);
-	end
 	
 endmodule
 
@@ -231,7 +213,6 @@ module processing_unit(clk);
 
 	input clk;
 
-	
 	wire rw;
 	wire [3:0] reg1;          // first operand (destination)
 	wire [3:0] reg2;          // second operand (source)
@@ -268,9 +249,6 @@ module test;
 
 	reg ck = 0;
 	always #5 ck = ~ck;
-
-	always @(negedge ck)
-		$display("\nCLOCK=====================================");
 
 
 	processing_unit CPU(ck);
