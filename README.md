@@ -19,6 +19,7 @@ Formats of Micro instruction:
       oooo rrrr 00000000
         
         oooo --> 4-bit opcode
+	rrrr --> 4-bit destination operand register
    
    2-byte instructions:  
    
