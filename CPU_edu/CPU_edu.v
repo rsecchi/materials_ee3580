@@ -3,11 +3,6 @@
 /* University of Aberdeen - 2019 */
 
 
-/*
-	rw = 0   read
-	rw = 1   write
-*/
-
 module register_file(clk, regname1, regname2, in, rw, out1, out2);
 	input wire clk;
 	
@@ -22,16 +17,6 @@ module register_file(clk, regname1, regname2, in, rw, out1, out2);
 	
 	always @(posedge clk)
 	begin
-		// $display("----------------");
-		//$display("RF: rw=%d reg1=%d reg2=%d out1=%d out2=%d", 
-		//	rw, regname1, regname2, out1, out2);
-		/*
-		$display("rw=%d", rw);
-		$display("regname1=%d", regname1);
-		$display("regname2=%d", regname2);
-		$display("in=%d", in);
-
-		*/
 		$display("r[0]=%2X r[1]=%2X r[2]=%2X r[3]=%2X r[4]=%2X r[5]=%2X r[6]=%2X", 
 				r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
 
@@ -53,10 +38,7 @@ module instr_memory(clk, addr, outrom);
 
 	reg [15:0] ROM[16'hFFFF:0];    // micro instructions memory (64KB)
 	
-	always @(posedge clk)
-	begin
-		outrom <= ROM[addr];
-	end
+	always @(posedge clk) outrom <= ROM[addr];
 
 endmodule
 
@@ -122,9 +104,7 @@ module control_unit(clk, op1, op2, rw, operation,
 							ip <= ip + 1;
 						end
 						
-						// COM     NEG       INC    LSR        LSL        
 						4'b0001, 4'b0100, 4'b0101, 4'b0110, 4'b0111,
-						// MOV       ADD     ADC    AND       OR
 						4'b1000, 4'b1010, 4'b1011, 4'b1100, 4'b1101
 						: begin // COM
 							$display("[%1X]opcode [%02d] [%02d]", 
@@ -180,7 +160,7 @@ module control_unit(clk, op1, op2, rw, operation,
 				   end
 			
 			default:
-				state <= 8'h00;
+				state <= RESET;
 				
 		endcase
 	end
@@ -247,10 +227,10 @@ endmodule
 
 
 
-module test;
+module processing_unit(clk);
 
-	reg ck = 0;
-	always #5 ck = ~ck;
+	input clk;
+
 	
 	wire rw;
 	wire [3:0] reg1;          // first operand (destination)
@@ -270,47 +250,43 @@ module test;
 	wire [7:0] val;
 	wire [7:0] sreg;
 
-
 	/* wiring the CPU */
 	assign val = (imm_res==0) ? immediate : res;
-	register_file RF(ck, reg1, reg2, val, rw, op1, op2);
+	register_file RF(clk, reg1, reg2, val, rw, op1, op2);
 
-	instr_memory INSTR_MEM(ck, instr_addr, opcode);
+	instr_memory INSTR_MEM(clk, instr_addr, opcode);
 
-	control_unit CPU_FSM(ck, reg1, reg2, rw, 
+	control_unit CPU_FSM(clk, reg1, reg2, rw, 
 			operation, immediate, instr_addr, opcode, imm_res, sreg);
 
-	arith_logic_unit ALU(ck, op1, op2, operation, res, sreg);
+	arith_logic_unit ALU(clk, op1, op2, operation, res, sreg);
+
+endmodule
 
 
-	always @(negedge ck)  $display("\nCLOCK=====================================");
-	//always @(val) $display("TEST ---> [imm_reg=%d] [immediate=%d] [res=%d] val=%d", 
-	//				imm_res, immediate, res, val);
-		
+module test;
+
+	reg ck = 0;
+	always #5 ck = ~ck;
+
+	always @(negedge ck)
+		$display("\nCLOCK=====================================");
+
+
+	processing_unit CPU(ck);
+
 	initial begin 
+
 		$dumpfile("delay.vcd");
 		$dumpvars(0,test);
-		$readmemh("rom.mem", INSTR_MEM.ROM);
 
-		// #0 INSTR_MEM.ROM[0] <= 16'h0000;
-		// #0 INSTR_MEM.ROM[1] <= 16'h9101;
-		// #0 INSTR_MEM.ROM[2] <= 16'h9202;
-		// #0 INSTR_MEM.ROM[3] <= 16'h9303;
-		// #0 INSTR_MEM.ROM[4] <= 16'h9404;
-		// #0 INSTR_MEM.ROM[5] <= 16'h9505;
-		// #0 INSTR_MEM.ROM[6] <= 16'h9606;
-		// #0 INSTR_MEM.ROM[7] <= 16'h0000;
-		// #0 INSTR_MEM.ROM[8] <= 16'h0000;
-		// #0 INSTR_MEM.ROM[9] <= 16'h0000;
-		
-		#0 CPU_FSM.state <= 16'h0000;
-		#0 RF.r[0] <= 8'h01;
-						
-		
+		/* load rom image */
+		$readmemh("rom.mem", CPU.INSTR_MEM.ROM);
+
+		#0 CPU.CPU_FSM.state <= 8'h00;   // initialise FSM
 		#1000 $finish;
 	
 	end
-	
-	
+
 	
 endmodule
