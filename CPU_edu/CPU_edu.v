@@ -18,7 +18,7 @@ module register_file(clk, regname1, regname2, in, rw, out1, out2);
 	output reg [7:0] out1;
 	output reg [7:0] out2;
 	
-	reg [15:0] r[15:0];
+	reg [7:0] r[15:0];
 	
 	always @(posedge clk)
 	begin
@@ -127,7 +127,8 @@ module control_unit(clk, op1, op2, rw, operation,
 						// MOV       ADD     ADC    AND       OR
 						4'b1000, 4'b1010, 4'b1011, 4'b1100, 4'b1101
 						: begin // COM
-							$display("COM %d",op1);
+							$display("[%1X]opcode [%02d] [%02d]", 
+								opcode, op1, op2);
 							imm_res <= 1'b1;
 							rw <= 1'b1;
 							state <= EXEC_WRITE;
@@ -142,20 +143,19 @@ module control_unit(clk, op1, op2, rw, operation,
 							ip <= ip + 1;
 						end
 
-						/*
-						4'b1010: begin // ADD
-							$display("ADD R%02d <- %2x",op1, rom_data[7:0]);
-							imm_res <= 1'b1;
-							rw <= 1'b1;
-							state <= EXEC_WRITE;
-							ip <= ip + 1;
+						4'b1110: begin // BREQ
+							$display("BREQ R%02d <- %2x",op1, rom_data[7:0]);
+							state <= WAIT_INSTR;
+							if (alu_flags & 8'h02)
+								ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
+							else
+								ip <= ip + 1;
 						end
-						*/
 
 						4'b1111: begin // RJMP
 							$display("RJMP R%02d <- %2x",op1, rom_data[7:0]);
 							state <= WAIT_INSTR;
-							ip <= ip + rom_data[7:0];
+							ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
 						end
 						
 						default:
@@ -169,11 +169,14 @@ module control_unit(clk, op1, op2, rw, operation,
 					$display("EXEC_WRITE R%02d <- %2x",op1, imm_op);
 					state <= FETCH;
 					rw <= 1'b0;
+					instr <= 8'h00;
 				   end
 			
 			WAIT_INSTR: begin // wait to load next instruction
 					$display("WAIT_INSTR");
 					state <= FETCH;
+					rw <= 1'b0;
+					instr <= 8'h00;
 				   end
 			
 			default:
@@ -189,6 +192,7 @@ module arith_logic_unit(clk, in1, in2, op, result, sreg);
 	input wire [7:0] in1;
 	input wire [7:0] in2;
 	input wire [3:0] op;
+	input wire clk;
 
 	output wire [7:0] result;
 	wire [8:0] sum;              // Adder Circuit plus carry 
@@ -198,9 +202,9 @@ module arith_logic_unit(clk, in1, in2, op, result, sreg);
 	wire c_flag;        // C flag in SREG
 
 	assign sum =
-		(op == 4'b0101) ? {0,in1} + 1           :  // INC
-		(op == 4'b1010) ? {0,in1} + {0,in2}     :  // ADD
-		(op == 4'b1011) ? {0,in1} + {0,in2} + 1 :  // ADC
+		(op == 4'b0101) ? {1'b0,in1} + 1                    :  // INC
+		(op == 4'b1010) ? {1'b0,in1} + {1'b0,in2}           :  // ADD
+		(op == 4'b1011) ? {1'b0,in1} + {1'b0,in2} + sreg[0] :  // ADC
 		0;  // default 
 
 	assign result = 
@@ -216,20 +220,28 @@ module arith_logic_unit(clk, in1, in2, op, result, sreg);
 		(op == 4'b1101) ? in1 | in2 :     // OR
 		0;  // default 
 	
-	assign z_flg = (result == 0) ? 1 : 0;
+	assign z_flg = 
+		(op == 4'b0100) ? (result == 0) :  // NEG
+		(op == 4'b0110) ? (result == 0) :  // LSR
+		(op == 4'b0111) ? (result == 0) :  // LSL
+		(op == 4'b1010) ? (result == 0) :  // ADD
+		(op == 4'b1011) ? (result == 0) :  // ADC
+		sreg[1];  // default 
 	
 	assign c_flg = 
-		(op == 4'b0100) ? -in1    :     // NEG
-		(op == 4'b0101) ? in1 + 1 :     // INC
-		(op == 4'b0110) ? in[0]   :     // LSR
-		(op == 4'b0111) ? in[7]   :     // LSL
-		(op == 4'b1010) ? sum[8]  :     // ADD
-		(op == 4'b1011) ? sum[8]  :     // ADC
-		0;  // default 
+		(op == 4'b0100) ? (in==8'h80) :     // NEG
+		(op == 4'b0110) ? in[0]       :     // LSR
+		(op == 4'b0111) ? in[7]       :     // LSL
+		(op == 4'b1010) ? sum[8]      :     // ADD
+		(op == 4'b1011) ? sum[8]      :     // ADC
+		sreg[1];  // default 
 	
 	always @(posedge clk)
-		sreg <= {6'b000000, z_flg, c_flg};
-	
+	begin
+		if (op!=4'b0000)
+			sreg <= {6'b000000, z_flg, c_flg};
+		$display("SREG=%2x",sreg);
+	end
 	
 endmodule
 
@@ -271,7 +283,7 @@ module test;
 	arith_logic_unit ALU(ck, op1, op2, operation, res, sreg);
 
 
-	always @(negedge ck)  $display("\n\n\nCLOCK=====================================");
+	always @(negedge ck)  $display("\nCLOCK=====================================");
 	//always @(val) $display("TEST ---> [imm_reg=%d] [immediate=%d] [res=%d] val=%d", 
 	//				imm_res, immediate, res, val);
 		
