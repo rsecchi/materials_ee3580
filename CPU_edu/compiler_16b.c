@@ -13,31 +13,29 @@ uint8_t mem_img[MEM_SIZE];  // 64kB instruction memory
 
 // instructions opcodes
 #define NOP       0x00 
-#define COM       0x01
-#define ST        0x02
-#define LD        0x03
-#define NEG       0x04
-#define INC       0x05
-#define LSR       0x06
-#define LSL       0x07
-#define MOV       0x08
-#define LDI       0x09
-#define ADD       0x0A
-#define ADC       0x0B
-#define AND       0x0C
-#define OR        0x0D
-#define BREQ      0x0E
-#define RJMP      0x0F
-
+#define ST        0x01
+#define BREQ      0x02
+#define RJMP      0x03
+#define LD        0x04
+#define ADI       0x05
+#define LDI       0x06
+#define LSR       0x07
+#define LSL       0x08
+#define COM       0x09
+#define NEG       0x0A
+#define MOV       0x0B
+#define ADD       0x0C
+#define ADC       0x0D
+#define AND       0x0E
+#define OR        0x0F
 
 char buffer[256];
 int bytes;
 int	token;
 
 const char* instr_name[] = {
-	"NOP", "COM", "ST", "LD", "NEG",  "INC",
-	"LSR", "LSL", "MOV", "LDI", "ADD", "ADC", "AND",
-	"OR", "BREQ", "RJMP" };
+	"NOP", "ST", "BREQ", "RJMP", "LD", "ADI", "LDI","LSR", 
+	"LSL", "COM", "NEG", "MOV", "ADD", "ADC", "AND","OR" };
 
 // --- labels and symbols ------
 #define MAX_LABS  100
@@ -133,7 +131,7 @@ void parse_cmdline(int argc, char* argv[])
 
 }
 
-void main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	uint8_t reg;
 	uint8_t opcode;
@@ -188,7 +186,6 @@ void main(int argc, char* argv[])
 			case ST:
 			case LD:
 			case NEG:
-			case INC:
 			case LSR:
 			case LSL:
 
@@ -200,6 +197,7 @@ void main(int argc, char* argv[])
 
 
 			case LDI:
+			case ADI:
 				token++;
 				reg = get_reg();
 				out_code((opcode<<4) | reg);
@@ -266,7 +264,7 @@ void main(int argc, char* argv[])
 			);
 			*/
 	
-			mem_img[sym[k].addr] = ((lab[i].addr>>1) - (sym[k].addr>>1));
+			mem_img[sym[k].addr] = ((lab[i].addr>>1) - (sym[k].addr>>1) -1);
 
 		} else {
 			// immediate?

@@ -1,268 +1,261 @@
-/* CPU educational example - Harvard arch */
-/* Raffaello Secchi */
-/* University of Aberdeen - 2019 */
+/*
+	Educational CPU simulating Atmel CPU
+	University of Aberdeen - 2020
+	Raffaello Secchi - r.secchi@abdn.ac.uk
+*/
 
+/* Register file */
+module reg_file(clk, 
+	regname1, regname2, in, rw, 
+	out1, out2);
 
-module register_file(clk, regname1, regname2, in, rw, out1, out2);
 	input wire clk;
-	
-	input wire [7:0] in;
 	input wire rw;
-	input wire [3:0] regname1;      // first operand (destination)
-	input wire [3:0] regname2;      // second operand (source)
-	output reg [7:0] out1;
-	output reg [7:0] out2;
-	
-	reg [7:0] r[15:0];
-	
+	input wire [3:0] regname1; // first operand
+	input wire [3:0] regname2; // second operand
+	input wire [7:0] in;
+
+	output wire [7:0] out1;
+	output wire [7:0] out2;
+
+	reg [7:0] r[15:0];		// register file
+
+	assign out1 = r[regname1];
+	assign out2 = r[regname2];
+
 	always @(posedge clk)
 	begin
-
-		out1 <= r[regname1];
-		out2 <= r[regname2];
-				
-		if (rw == 1'b1)
-			r[regname1] <= in;
-	end
+		if (rw == 1'b0)
+			r[regname1] <= in;	
+	end 
 	
-endmodule 
+endmodule
 
 
-module instr_memory(clk, addr, outrom);
+/* CPU decoding block */
+module decode_unit(clk, 
+	instruction, zero_flag,
+	reg1, reg2, write, immediate, imm_data, opcode, rel_addr, jump);
 
 	input wire clk;
-	input wire [15:0] addr;
-	output reg [15:0] outrom;
-
-	reg [15:0] ROM[16'hFFFF:0];    // micro instructions memory (64KB)
+	input wire [15:0] instruction; // instruction from ROM
 	
-	always @(posedge clk) 
-		outrom <= ROM[addr];
+	/* outputs to RF (Register File) */
+	output wire [3:0] reg1;        // operand register index 1
+	output wire [3:0] reg2;        // operand register index 2
+	output wire write;             // write command to the register file
+
+	/* outputs to ALU (Arithmetic and Logic Unit) */
+	output wire immediate;         // indicates an immediate operand
+	output wire [7:0] imm_data;    // immediate data
+	output wire [3:0] opcode;      // ALU operation
+	input wire zero_flag;          // Z flag in SREG from ALU
+
+	/* outputs to AGU (Address Generation Unit) */
+	output wire jump;              // indicates a jump 
+	output wire [7:0] rel_addr;    // jump relative address
+
+	reg [15:0] instr_reg;
+
+	/* load the instruction at positive clock edge */
+	always @(posedge clk)
+		instr_reg <= instruction;
+
+
+	/* Generating signals */
+
+	/* signals to Register File */
+	assign reg1 = instr_reg[11:8];
+	assign reg2 = instr_reg[3:0];
+	assign write = !(instr_reg[15] | instr_reg[14]);
+	
+	/* signals to Arithmetic and Logic Unit */
+	assign immediate = !instr_reg[15];	
+	assign imm_data = instr_reg[7:0];
+	assign opcode = instr_reg[15:12];
+
+	/* signals to Address Generation Unit */
+	assign rel_addr = instr_reg[7:0];
+	assign jump = ((opcode == 4'b0011) || 
+                   (opcode == 4'b0010 && zero_flag == 1'b1));
 
 endmodule
 
 
-module control_unit(clk, op1, op2, rw, operation, 
-			imm_op, ip, rom_data, imm_res, alu_flags);
+module address_gen_unit(clk, reset,
+	rel_addr, jump,
+	address);
 
-	/* input signals */	
 	input wire clk;
-	input wire [15:0] rom_data;    // instruction from ROM
-	wire [3:0] opcode;             // opcode field in instruction
+	input wire reset;
 
-	/* control registers */
-	reg [1:0] state;               // internal FSM state	
-	output reg [15:0] ip;          // instruction pointer
-	input [7:0] alu_flags;         // flags from ALU
-	reg [15:0] instr;              // temporary instruction register
+	/* inputs from Decode Unit (DU) */
+	input wire [7:0] rel_addr;
+	input wire jump;
 
-	/* state encodings */
-	parameter RESET=2'b00;
-	parameter FETCH=2'b01;
-	parameter WAIT_INSTR=2'b10;
+	/* outputs to instruction memory */
+	output wire [13:0] address;
+
+	reg [13:0] instr_pointer; // instruction pointer
 	
-	/* output signals */
-	output reg rw;                 // read/write register file
-	output wire [7:0] imm_op;      // immediate operand
-	output reg imm_res;            // immediate or register
-	output wire [3:0] operation;   // ALU operation;
-	output wire [3:0] op1;         // first operand (reg)
-	output wire [3:0] op2;         // second operand (reg)
-		
-	/* signal generation (decode) */
-	assign opcode    = rom_data[15:12];	
-	assign op1       = (state==WAIT_INSTR) ? instr[11:8] : rom_data[11:8];
-	assign op2       = rom_data[3:0];
-	assign imm_op    = instr[7:0];
-	assign operation = instr[15:12];
+	assign address = instr_pointer;
 
-	/* FSM (generate next state, update ip and rw) */	
+
 	always @(posedge clk)
-	begin
-				
-		case(state)
-		
-			RESET: begin
-					ip <= 16'h0000;
-					rw <= 1'b0;
-					state <= WAIT_INSTR;
-					instr <= 8'h00;
-				   end
-			
-			FETCH: begin
-					instr <= rom_data;
-					state <= WAIT_INSTR;
-
-					// decode opcode
-					case(opcode)
-						
-						4'b0000: begin // NOP
-							ip <= ip + 1;
-							rw <= 1'b0;
-						end
-
-						4'b0001, 4'b0100, 4'b0101, 4'b0110, 4'b0111,
-						4'b1000, 4'b1010, 4'b1011, 4'b1100, 4'b1101
-						: begin // COM
-							imm_res <= 1'b1;
-							ip <= ip + 1;
-							rw <= 1'b1;
-						end
-			
-						4'b1001: begin // LDI
-							imm_res <= 1'b0;
-							ip <= ip + 1;
-							rw <= 1'b1;
-						end
-
-						4'b1110: begin // BREQ
-							rw <= 1'b0;
-							if (alu_flags & 8'h02)
-								ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
-							else
-								ip <= ip + 1;
-						end
-
-						4'b1111: begin // RJMP
-							ip <= ip + {{8{rom_data[7]}}, rom_data[7:0]};
-							rw <= 1'b0;
-						end
-						
-						default:
-							ip <= 16'h0000;
-					endcase
-					
-					end	
-				   
-			
-			
-			WAIT_INSTR: begin // wait to load next instruction
-					state <= FETCH;
-					rw <= 1'b0;
-					instr <= 8'h00;
-				   end
-			
-			default:
-				state <= RESET;
-				
-		endcase
+	begin 
+		if (reset == 1'b0)
+			instr_pointer <= 14'h00; 
+		else 
+		if (jump == 1'b1)
+			instr_pointer <= instr_pointer + 
+					{ {6{rel_addr[7]}} , rel_addr};
+		else
+			instr_pointer <= instr_pointer + 1;
 	end
 
 endmodule
 
-module arith_logic_unit(clk, in1, in2, op, result, sreg);
-	
-	input wire [7:0] in1;
-	input wire [7:0] in2;
-	input wire [3:0] op;
+
+module arith_logic_unit(clk,
+	op1, op2, opcode,
+	result, zero_flag);
+
 	input wire clk;
+	input wire [7:0] op1;     // first operand
+	input wire [7:0] op2;     // second operand (if present)
+	input wire [3:0] opcode;  // ALU operation
 
-	output wire [7:0] result;
-	wire [8:0] sum;              // Adder Circuit plus carry 
-	output reg  [7:0] sreg;
+	output wire [7:0] result; // ALU results (8 bits)
+	output wire zero_flag;    // Z bit from Status Register
 
-	wire z_flag;        // Z flag in SREG
-	wire c_flag;        // C flag in SREG
 
-	assign sum =
-		(op == 4'b0101) ? {1'b0,in1} + 1                    :  // INC
-		(op == 4'b1010) ? {1'b0,in1} + {1'b0,in2}           :  // ADD
-		(op == 4'b1011) ? {1'b0,in1} + {1'b0,in2} + sreg[0] :  // ADC
-		0;  // default 
+	wire carry_flag;          // C bit from Status Register
+	wire [8:0] sum;
+
+	reg [1:0] sreg;           // Status Register (Z and C bit only)
+	
+	assign sum = 
+		(opcode == 4'b0101 || opcode == 4'b1100) 
+							? {1'b0, op1} + {1'b0, op2}  :  // ADI, ADD
+		(opcode == 4'b1101) ? {1'b0, op1} + {1'b0, op2} 
+						+ { 8'b0, sreg[0]} :  // ADC
+		0;
+
+	assign carry_flag = 
+		(opcode == 4'b0101) ? sum[8]  :  // ADI
+		(opcode == 4'b0111) ? op1[7]  :  // LSR
+		(opcode == 4'b1000) ? op1[0]  :  // LSL
+		(opcode == 4'b1100) ? sum[8]  :  // ADD
+		(opcode == 4'b1101) ? sum[8]  :  // ADC
+		sreg[0]; // default
+
+	assign zero_flag = 
+		(opcode == 4'b0000) ?  sreg[1]      :  // NOP
+		(opcode == 4'b0001) ?  sreg[1]      :  // ST
+		(opcode == 4'b0010) ?  sreg[1]      :  // BREQ
+		(opcode == 4'b0011) ?  sreg[1]      :  // RJMP
+		(opcode == 4'b0100) ?  sreg[1]      :  // LD
+		(opcode == 4'b0101) ? (result == 0) :  // ADI
+		(opcode == 4'b0110) ? (result == 0) :  // LDI
+		(opcode == 4'b0111) ? (result == 0) :  // LSR
+		(opcode == 4'b1000) ? (result == 0) :  // LSL
+		(opcode == 4'b1001) ? (result == 0) :  // COM
+		(opcode == 4'b1010) ? (result == 0) :  // NEG
+		(opcode == 4'b1011) ?  sreg[1]      :  // MOV
+		(opcode == 4'b1100) ? (result == 0) :  // ADD
+		(opcode == 4'b1101) ? (result == 0) :  // ADC
+		(opcode == 4'b1110) ? (result == 0) :  // AND
+		(opcode == 4'b1111) ? (result == 0) :  // OR
+		sreg[1]; // default
+
 
 	assign result = 
-		(op == 4'b0001) ? ~in1      :     // COM
-		(op == 4'b0100) ? -in1      :     // NEG
-		(op == 4'b0101) ? in1 + 1   :     // INC
-		(op == 4'b0110) ? in >> 1   :     // LSR
-		(op == 4'b0111) ? in << 1   :     // LSL
-		(op == 4'b1000) ? in2       :     // MOV
-		(op == 4'b1010) ? sum[7:0]  :     // ADD
-		(op == 4'b1011) ? sum[7:0]  :     // ADC
-		(op == 4'b1100) ? in1 & in2 :     // AND
-		(op == 4'b1101) ? in1 | in2 :     // OR
-		0;  // default 
-	
-	assign z_flg = 
-		(op == 4'b0100) ? (result == 0) :  // NEG
-		(op == 4'b0110) ? (result == 0) :  // LSR
-		(op == 4'b0111) ? (result == 0) :  // LSL
-		(op == 4'b1010) ? (result == 0) :  // ADD
-		(op == 4'b1011) ? (result == 0) :  // ADC
-		sreg[1];  // default 
-	
-	assign c_flg = 
-		(op == 4'b0100) ? (in==8'h80) :     // NEG
-		(op == 4'b0110) ? in[0]       :     // LSR
-		(op == 4'b0111) ? in[7]       :     // LSL
-		(op == 4'b1010) ? sum[8]      :     // ADD
-		(op == 4'b1011) ? sum[8]      :     // ADC
-		sreg[1];  // default 
-	
+		(opcode == 4'b0101) ? sum[7:0]   :  // ADI
+		(opcode == 4'b0110) ? op2        :  // LDI
+		(opcode == 4'b0111) ? op1 >> 1   :  // LSR
+		(opcode == 4'b1000) ? op1 << 1   :  // LSL
+		(opcode == 4'b1001) ? ~op1       :  // COM
+		(opcode == 4'b1010) ? -op1       :  // NEG
+		(opcode == 4'b1011) ? op1        :  // MOV
+		(opcode == 4'b1100) ? sum[7:0]   :  // ADD
+		(opcode == 4'b1101) ? sum[7:0]   :  // ADC
+		(opcode == 4'b1110) ? op1 & op2  :  // AND
+		(opcode == 4'b1111) ? op1 | op2  :  // OR
+		0; // default
+
 	always @(posedge clk)
-		if (op!=4'b0000)
-			sreg <= {6'b000000, z_flg, c_flg};
-	
-endmodule
-
-
-
-module processing_unit(clk);
-
-	input clk;
-
-	wire rw;
-	wire [3:0] reg1;          // first operand (destination)
-	wire [3:0] reg2;          // second operand (source)
-	
-	wire [7:0] op1;           // ALU operand register 1
-	wire [7:0] op2;           // ALU operand register 2
-
-	wire [3:0] operation;
-	wire [15:0] instr_addr;
-	wire [15:0] opcode;
-	
-	/* regfile update variables */
-	wire imm_res;
-	wire [7:0] res;
-	wire [7:0] immediate;
-	wire [7:0] val;
-	wire [7:0] sreg;
-
-	/* wiring the CPU */
-	assign val = (imm_res==0) ? immediate : res;
-	register_file RF(clk, reg1, reg2, val, rw, op1, op2);
-
-	instr_memory INSTR_MEM(clk, instr_addr, opcode);
-
-	control_unit CPU_FSM(clk, reg1, reg2, rw, 
-			operation, immediate, instr_addr, opcode, imm_res, sreg);
-
-	arith_logic_unit ALU(clk, op1, op2, operation, res, sreg);
-
-endmodule
-
-
-module test;
-
-	reg ck = 0;
-	always #5 ck = ~ck;
-
-
-	processing_unit CPU(ck);
-
-	initial begin 
-
-		$dumpfile("delay.vcd");
-		$dumpvars(0,test);
-
-		/* load rom image */
-		$readmemh("rom.mem", CPU.INSTR_MEM.ROM);
-
-		#0 CPU.CPU_FSM.state <= 8'h00;   // initialise FSM
-		#1000 $finish;
-	
+	begin
+		sreg[0] <= carry_flag;
+		sreg[1] <= zero_flag;	
 	end
 
-	
 endmodule
+
+
+/* Flash memory */
+module instr_memory(address, data);
+
+	input wire [13:0] address;
+	output wire [15:0] data;
+
+	reg [15:0] ROM[14'h3FFF:0];   // micro instruction memory
+
+	assign data = ROM[address];
+
+endmodule
+
+
+
+module central_proc_unit(clk, reset);
+
+	input wire clk;
+	input wire reset;
+
+	/* internal signals */
+	wire [3:0] reg1;
+	wire [3:0] reg2;
+	wire rw;
+	wire imm;
+	wire [7:0] imm_data;
+	wire [3:0] opcode;
+	wire zflag;
+
+	wire [7:0] rf_in;
+	wire [7:0] rf_out2;
+	wire [7:0] rf_out1;
+	wire [7:0] alu_in2;
+	wire [7:0] alu_out;
+
+	wire [15:0] instr;
+	wire [13:0] addr;
+	
+	wire [7:0] rel_addr;
+	wire jump;
+
+	/* instantiate blocks */	
+	assign alu_in2 = (imm == 1) ? imm_data : rf_out2;
+
+	arith_logic_unit ALU(clk,
+		rf_out1, alu_in2, opcode,
+		rf_in, zflag);
+
+	reg_file RF(clk, 
+		reg1, reg2, rf_in, rw, 
+		rf_out1, rf_out2);
+
+	decode_unit DU(clk, 
+		instr, zflag,
+		reg1, reg2, rw, imm, imm_data, opcode, rel_addr, jump);
+
+	address_gen_unit AGU(clk, reset,
+		rel_addr, jump, 
+		addr);
+
+	instr_memory MEM(addr, instr);
+
+endmodule
+
+
+
+
+
