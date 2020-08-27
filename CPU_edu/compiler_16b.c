@@ -85,22 +85,15 @@ uint8_t get_reg()
 uint8_t get_op()
 {
 	unsigned int res;
-	char local_buf[255];
-	char c;
 
-	if (sscanf(buffer, " %c%[0-9]", &c, local_buf)<=1 || 
-		c!='$' || 
-		sscanf(local_buf, "%d", &res)<=0 || 
-		res>255 || res<0 )
-	{
+	if (sscanf(buffer, " %i", &res)<=0 ) {
 		fprintf(stderr, "Unknown operand %s at token %d\n", 
 			buffer, token);
-		exit(1);
+		exit(1);		
 	}
 
 	return res;
 }
-
 void parse_cmdline(int argc, char* argv[])
 {
 	char* fn;
@@ -227,6 +220,7 @@ int main(int argc, char* argv[])
 					exit(1);
 				}
 				out_code(get_reg());
+				
 				break;
 
 
@@ -243,7 +237,7 @@ int main(int argc, char* argv[])
 				syms++;
 
 				out_code(0);  
-				
+
 				break;
 		}
 	}			

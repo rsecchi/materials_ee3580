@@ -33,11 +33,12 @@ endmodule
 
 
 /* CPU decoding block */
-module decode_unit(clk, 
+module decode_unit(clk, reset,
 	instruction, zero_flag,
 	reg1, reg2, write, immediate, imm_data, opcode, rel_addr, jump);
 
 	input wire clk;
+	input wire reset;              // reset is active low
 	input wire [15:0] instruction; // instruction from ROM
 	
 	/* outputs to RF (Register File) */
@@ -52,15 +53,23 @@ module decode_unit(clk,
 	input wire zero_flag;          // Z flag in SREG from ALU
 
 	/* outputs to AGU (Address Generation Unit) */
-	output wire jump;              // indicates a jump 
+	output wire jump;              // indicates a jump (active low)
 	output wire [7:0] rel_addr;    // jump relative address
 
 	reg [15:0] instr_reg;
 
+
 	/* load the instruction at positive clock edge */
 	always @(posedge clk)
-		instr_reg <= instruction;
+	begin
+		if ( reset == 1'b0 || jump == 1'b0)
+			/* flush the register after a jump or reset */
+			instr_reg <= 16'b0;
+		else
+			/* otherwise gets instruction from I.M. */
+			instr_reg <= instruction;
 
+	end
 
 	/* Generating signals */
 
@@ -76,8 +85,8 @@ module decode_unit(clk,
 
 	/* signals to Address Generation Unit */
 	assign rel_addr = instr_reg[7:0];
-	assign jump = ((opcode == 4'b0011) || 
-                   (opcode == 4'b0010 && zero_flag == 1'b1));
+	assign jump = ~((opcode == 4'b0011) || 
+	                (opcode == 4'b0010 && zero_flag == 1'b1));
 
 endmodule
 
@@ -87,7 +96,7 @@ module address_gen_unit(clk, reset,
 	address);
 
 	input wire clk;
-	input wire reset;
+	input wire reset;         // active low
 
 	/* inputs from Decode Unit (DU) */
 	input wire [7:0] rel_addr;
@@ -106,7 +115,7 @@ module address_gen_unit(clk, reset,
 		if (reset == 1'b0)
 			instr_pointer <= 14'h00; 
 		else 
-		if (jump == 1'b1)
+		if (jump == 1'b0)
 			instr_pointer <= instr_pointer + 
 					{ {6{rel_addr[7]}} , rel_addr};
 		else
@@ -176,7 +185,7 @@ module arith_logic_unit(clk,
 		(opcode == 4'b1000) ? op1 << 1   :  // LSL
 		(opcode == 4'b1001) ? ~op1       :  // COM
 		(opcode == 4'b1010) ? -op1       :  // NEG
-		(opcode == 4'b1011) ? op1        :  // MOV
+		(opcode == 4'b1011) ? op2        :  // MOV
 		(opcode == 4'b1100) ? sum[7:0]   :  // ADD
 		(opcode == 4'b1101) ? sum[7:0]   :  // ADC
 		(opcode == 4'b1110) ? op1 & op2  :  // AND
@@ -243,7 +252,7 @@ module central_proc_unit(clk, reset);
 		reg1, reg2, rf_in, rw, 
 		rf_out1, rf_out2);
 
-	decode_unit DU(clk, 
+	decode_unit DU(clk, reset,
 		instr, zflag,
 		reg1, reg2, rw, imm, imm_data, opcode, rel_addr, jump);
 
