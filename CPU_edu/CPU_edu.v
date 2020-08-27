@@ -152,30 +152,24 @@ module arith_logic_unit(clk,
 
 	assign carry_flag = 
 		(opcode == 4'b0101) ? sum[8]  :  // ADI
-		(opcode == 4'b0111) ? op1[7]  :  // LSR
-		(opcode == 4'b1000) ? op1[0]  :  // LSL
+		(opcode == 4'b0111) ? op1[0]  :  // LSR
+		(opcode == 4'b1000) ? op1[7]  :  // LSL
 		(opcode == 4'b1100) ? sum[8]  :  // ADD
 		(opcode == 4'b1101) ? sum[8]  :  // ADC
 		sreg[0]; // default
 
 	assign zero_flag = 
-		(opcode == 4'b0000) ?  sreg[1]      :  // NOP
-		(opcode == 4'b0001) ?  sreg[1]      :  // ST
-		(opcode == 4'b0010) ?  sreg[1]      :  // BREQ
-		(opcode == 4'b0011) ?  sreg[1]      :  // RJMP
-		(opcode == 4'b0100) ?  sreg[1]      :  // LD
-		(opcode == 4'b0101) ? (result == 0) :  // ADI
-		(opcode == 4'b0110) ? (result == 0) :  // LDI
-		(opcode == 4'b0111) ? (result == 0) :  // LSR
-		(opcode == 4'b1000) ? (result == 0) :  // LSL
-		(opcode == 4'b1001) ? (result == 0) :  // COM
-		(opcode == 4'b1010) ? (result == 0) :  // NEG
-		(opcode == 4'b1011) ?  sreg[1]      :  // MOV
-		(opcode == 4'b1100) ? (result == 0) :  // ADD
-		(opcode == 4'b1101) ? (result == 0) :  // ADC
-		(opcode == 4'b1110) ? (result == 0) :  // AND
-		(opcode == 4'b1111) ? (result == 0) :  // OR
-		sreg[1]; // default
+		(opcode == 4'b0101) || // ADI
+		(opcode == 4'b0111) || // LSR
+		(opcode == 4'b1000) || // LSL
+		(opcode == 4'b1001) || // COM
+		(opcode == 4'b1010) || // NEG
+		(opcode == 4'b1100) || // ADD
+		(opcode == 4'b1101) || // ADC
+		(opcode == 4'b1110) || // AND
+		(opcode == 4'b1111)    // PR
+			? (result == 0) :  
+				sreg[1]; // default
 
 
 	assign result = 
