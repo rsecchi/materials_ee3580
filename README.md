@@ -38,7 +38,7 @@ Formats of Micro instruction:
 
 ========================================================
 
-    one-byte instructions
+    opcode / instruction
 
     0000   NOP              =>   No operation
     0001   ST reg           =>   Store in Memory  (at the address pointed by reg R14:R15)
