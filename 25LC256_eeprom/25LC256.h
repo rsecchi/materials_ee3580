@@ -43,18 +43,16 @@ void conf_spi_25LC256();
 
 /* Single SPI transfer */
 uint8_t spi_transfer_byte(uint8_t data);
+void    spi_write_word(uint16_t wrd);
+void    spi_write_array(uint8_t* data_out, uint16_t* len);
+void    spi_read_array(uint8_t* data_in, uint16_t* len);
 
-/* Returns byte at addr [0x0000:0x7FFF] */
-uint8_t eeprom_read(uint16_t addr);
 
-/* Returns the status register */
-uint8_t eeprom_read_SR();
+uint8_t eeprom_read(uint16_t addr);      /* Returns byte at addr [0x0000:0x7FFF] */
+uint8_t eeprom_read_SR();                /* Returns the status register */
+void    eeprom_enable_write();           /* Enable EEPROM write */
+void    eeprom_disable_write();             /* Disable EEPROM write */
 
-/* Enable EEPROM write */
-void eeprom_enable_write();
-
-/* Disable EEPROM write */
-void eeprom_disable_write();
 
 /* wait for device to terminate write cycle */
 void eeprom_wait_write();

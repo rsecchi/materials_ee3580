@@ -4,23 +4,7 @@
      University of Aberdeen - 2020
 */
 #include "Arduino.h"
-
-#define NOCMD   0x00
-#define WRSR    0x01
-#define WRITE   0x02
-#define READ    0x03
-#define WRDI    0x04
-#define RDSR    0x05
-#define WREN    0x06
-
-#define WPEN    7
-#define BP1     3
-#define BP0     2
-#define WEL     1
-#define WIP     0
-
-#define START_SPI   (PORTB &= ~(1<<PB2))
-#define STOP_SPI    (PORTB |= (1<<PB2))
+#include "25LC256.h"
 
 void conf_spi_25LC256()
 {
@@ -37,6 +21,9 @@ void conf_spi_25LC256()
   SPCR = 0x53;  // SPE, MSTR, mode(0,0), 125kHz
 }
 
+
+// SPI implementation
+
 uint8_t spi_transfer_byte(uint8_t data)
 {
   SPDR = data;                 // load SPI buffer
@@ -44,17 +31,46 @@ uint8_t spi_transfer_byte(uint8_t data)
   return SPDR;                 // return buffer
 }
 
+void spi_write_word(uint16_t wrd)
+{
+  spi_transfer_byte((uint8_t)(wrd >> 8));
+  spi_transfer_byte((uint8_t)(wrd & 0xFF));
+}
+
+
+void spi_read_array(uint8_t* data_in, uint16_t* len)
+{
+  for(;len>0; len--)
+  {
+    SPDR = NOCMD;
+    while(!(SPSR & (1<<SPIF)));
+    *data_in = SPDR;
+    data_in++;
+  }
+}
+
+void spi_write_array(uint8_t* data_out, uint16_t* len)
+{
+  for(;len>0; len--)
+  {
+    SPDR = *data_out;
+    data_out++;
+    while(!(SPSR & (1<<SPIF)));
+  }
+}
+
+
+
+/// EEPROM control implementation
+
 uint8_t eeprom_read(uint16_t addr)
 {
-  uint8_t addrH, addrL;
+
   uint8_t result;
-  addrH = addr >> 8;
-  addrL = addr & 0xFF;
 
   START_SPI;
   spi_transfer_byte(READ);
-  spi_transfer_byte(addrH);   
-  spi_transfer_byte(addrL);
+  spi_write_word(addr);
   result = spi_transfer_byte(NOCMD);
   STOP_SPI;
 
@@ -102,18 +118,12 @@ void eeprom_wait_write()
 
 void eeprom_write(uint16_t addr, uint8_t data)
 {
-  uint8_t result;
-  uint8_t addrH, addrL;
-  addrH = addr >> 8;
-  addrL = addr & 0xFF;
 
   eeprom_enable_write();
   
   START_SPI;
-  spi_transfer_byte(WREN);
   spi_transfer_byte(WRITE);
-  spi_transfer_byte(addrH);
-  spi_transfer_byte(addrL);
+  spi_write_word(addr);
   spi_transfer_byte(data);
   STOP_SPI;
   
@@ -123,32 +133,17 @@ void eeprom_write(uint16_t addr, uint8_t data)
 
 uint16_t eeprom_read_msg(uint16_t addr, uint16_t size, uint8_t* out)
 {  
-  uint8_t addrH, addrL;
-  uint8_t result;
-  addrH = addr >> 8;
-  addrL = addr & 0xFF;
-
 
   START_SPI;
   spi_transfer_byte(READ);
-  spi_transfer_byte(addrH);   
-  spi_transfer_byte(addrL);
-  
-  while(size)
-  {
-    *out = spi_transfer_byte(NOCMD);
-    out++;
-    size--;
-  }
-  
+  spi_write_word(addr);
+  spi_read_array(out, size);
   STOP_SPI;
 }
 
 
 void eeprom_write_msg(uint8_t* out, int size, uint16_t addr)
 {  
-  uint8_t addrH, addrL;
-  uint8_t result;
   uint16_t blocksize;
 
   while(size>0)
@@ -164,21 +159,13 @@ void eeprom_write_msg(uint8_t* out, int size, uint16_t addr)
     else
         size -= blocksize;
    
-    addrH = addr >> 8;
-    addrL = addr & 0xFF;
-
     eeprom_enable_write();
     
     START_SPI;
     spi_transfer_byte(WRITE);
-    spi_transfer_byte(addrH);
-    spi_transfer_byte(addrL);
-
-    for(; blocksize>0; blocksize--) {
-       spi_transfer_byte(*out);
-       out++;
-       addr++;
-    }
+    spi_write_word(addr);
+    spi_write_array(out, blocksize);
+    addr += blocksize;
     STOP_SPI;
 
     eeprom_wait_write();
