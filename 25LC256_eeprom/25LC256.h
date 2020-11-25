@@ -41,28 +41,22 @@
 */
 void conf_spi_25LC256();
 
-/* Single SPI transfer */
+/* SPI bus */
 uint8_t spi_transfer_byte(uint8_t data);
 void    spi_write_word(uint16_t wrd);
-void    spi_write_array(uint8_t* data_out, uint16_t* len);
-void    spi_read_array(uint8_t* data_in, uint16_t* len);
+void    spi_write_array(uint8_t* data_out, uint16_t len);
+void    spi_read_array(uint8_t* data_in, uint16_t len);
 
-
+/* EEPROM control */
 uint8_t eeprom_read(uint16_t addr);      /* Returns byte at addr [0x0000:0x7FFF] */
 uint8_t eeprom_read_SR();                /* Returns the status register */
 void    eeprom_enable_write();           /* Enable EEPROM write */
-void    eeprom_disable_write();             /* Disable EEPROM write */
-
-
-/* wait for device to terminate write cycle */
-void eeprom_wait_write();
-
-/* write 'data' at address [0x0000:0x7FFF] */
-void eeprom_write(uint16_t addr, uint8_t data);
+void    eeprom_disable_write();          /* Disable EEPROM write */
+void    eeprom_wait_write();             /* wait for device to terminate write cycle */
+void    eeprom_write(uint16_t addr, uint8_t data); /* write 'data' at address [0x0000:0x7FFF] */
 
 /* copies size EEPROM bytes startging at addr into the buffer 'out' */
 uint16_t eeprom_read_msg(uint16_t addr, uint16_t size, uint8_t* out);
-
 
 /* write size bytes from 'out' into EEPROM starting at 'addr' */
 void eeprom_write_msg(uint8_t* out, int size, uint16_t addr);
