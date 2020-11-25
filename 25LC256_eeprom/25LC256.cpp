@@ -38,7 +38,7 @@ void spi_write_word(uint16_t wrd)
 }
 
 
-void spi_read_array(uint8_t* data_in, uint16_t* len)
+void spi_read_array(uint8_t* data_in, uint16_t len)
 {
   for(;len>0; len--)
   {
@@ -49,7 +49,7 @@ void spi_read_array(uint8_t* data_in, uint16_t* len)
   }
 }
 
-void spi_write_array(uint8_t* data_out, uint16_t* len)
+void spi_write_array(uint8_t* data_out, uint16_t len)
 {
   for(;len>0; len--)
   {
@@ -58,7 +58,6 @@ void spi_write_array(uint8_t* data_out, uint16_t* len)
     while(!(SPSR & (1<<SPIF)));
   }
 }
-
 
 
 /// EEPROM control implementation
@@ -141,7 +140,6 @@ uint16_t eeprom_read_msg(uint16_t addr, uint16_t size, uint8_t* out)
   STOP_SPI;
 }
 
-
 void eeprom_write_msg(uint8_t* out, int size, uint16_t addr)
 {  
   uint16_t blocksize;
@@ -158,7 +156,7 @@ void eeprom_write_msg(uint8_t* out, int size, uint16_t addr)
     }
     else
         size -= blocksize;
-   
+
     eeprom_enable_write();
     
     START_SPI;
@@ -169,6 +167,7 @@ void eeprom_write_msg(uint8_t* out, int size, uint16_t addr)
     STOP_SPI;
 
     eeprom_wait_write();
+
   }
 
 }
