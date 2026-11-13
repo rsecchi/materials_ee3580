@@ -1,0 +1,21 @@
+# Build and simulation outputs (regenerate with make)
+*.vcd
+*.vvp
+*.img
+a.out
+CPU_edu/comp
+CPU_edu/comp16
+CPU_edu/cpu
+CPU_edu/test
+CPU_edu/file
+misc_verilog/hello
+
+# Editor/backup and scratch files
+*.bak
+temp/
+temp.v
+mytest.asm
+
+# Never commit cohort lists or anything with student data
+users_*
+cohort*.txt

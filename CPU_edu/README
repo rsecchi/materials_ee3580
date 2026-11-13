@@ -1,0 +1,6 @@
+
+In order to create a simulation:
+
+1) Insert the assembly code into a <filename>.asm file
+2) make <filename>.vcd
+
