@@ -11,6 +11,7 @@ student names, usernames, marks, passwords or other personal data.
 | `CPU_edu/` | `CPU_edu`: an 8-bit educational CPU in Verilog, its assembler and test benches |
 | `25LC256_eeprom/` | Arduino driver for the Microchip 25LC256 SPI EEPROM (`25LC256.h/.cpp`, example `.ino`) |
 | `misc_verilog/` | Small Verilog examples (e.g. `dpll.v`, a DPLL simulation) |
+| `Kicad/lab_components/` | KiCad symbol + footprint library for the lab kit (PCB lab). Install with the nickname `lab_components`; see `Kicad/README.md`. The working copy in the course folder is `Laboratories\LIBRARIES`, with zipped versions also in `Gerbers\LIBRARIES.zip` |
 | `utils/` | Admin scripts for the Raspberry Pi used in earlier years (see below) |
 
 ## CPU_edu
